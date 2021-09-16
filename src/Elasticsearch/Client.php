@@ -1518,30 +1518,6 @@ class Client
      */
     protected function performBooleanRequest(AbstractEndpoint $endpoint)
     {
-        try {
-            $response = $this->transport->performRequest(
-                $endpoint->getMethod(),
-                $endpoint->getURI(),
-                $endpoint->getParams(),
-                $endpoint->getBody(),
-                $endpoint->getOptions()
-            );
-
-            $response = $this->transport->resultOrFuture($response, $endpoint->getOptions());
-            if (!($response instanceof FutureArrayInterface)) {
-                if ($response['status'] === 200) {
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                // async mode, can't easily resolve this...punt to user
-                return $response;
-            }
-        } catch (Missing404Exception $exception) {
-            return false;
-        } catch (RoutingMissingException $exception) {
-            return false;
-        }
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 }
