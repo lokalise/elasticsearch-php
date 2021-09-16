@@ -1493,7 +1493,7 @@ class Client
      * @throws \Exception
      * @return array
      */
-    private function performRequest(AbstractEndpoint $endpoint)
+    protected function performRequest(AbstractEndpoint $endpoint)
     {
         $promise =  $this->transport->performRequest(
             $endpoint->getMethod(),
