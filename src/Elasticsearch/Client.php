@@ -7,6 +7,7 @@ use Elasticsearch\Common\Exceptions\InvalidArgumentException;
 use Elasticsearch\Common\Exceptions\NoNodesAvailableException;
 use Elasticsearch\Common\Exceptions\BadRequest400Exception;
 use Elasticsearch\Common\Exceptions\Missing404Exception;
+use Elasticsearch\Common\Exceptions\RoutingMissingException;
 use Elasticsearch\Common\Exceptions\TransportException;
 use Elasticsearch\Endpoints\AbstractEndpoint;
 use Elasticsearch\Namespaces\CatNamespace;
@@ -18,6 +19,7 @@ use Elasticsearch\Namespaces\NodesNamespace;
 use Elasticsearch\Namespaces\SnapshotNamespace;
 use Elasticsearch\Namespaces\BooleanRequestWrapper;
 use Elasticsearch\Namespaces\TasksNamespace;
+use GuzzleHttp\Ring\Future\FutureArrayInterface;
 
 /**
  * Class Client
@@ -569,7 +571,7 @@ class Client
                  ->setType($type);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
+        return $this->performBooleanRequest($endpoint);
     }
 
     /**
@@ -1504,5 +1506,42 @@ class Client
         );
 
         return $this->transport->resultOrFuture($promise, $endpoint->getOptions());
+    }
+
+    /**
+     * Perform Boolean Request
+     *
+     * @param  AbstractEndpoint $endpoint The Endpoint to perform this request against
+     *
+     * @throws Missing404Exception
+     * @throws RoutingMissingException
+     */
+    protected function performBooleanRequest(AbstractEndpoint $endpoint)
+    {
+        try {
+            $response = $this->transport->performRequest(
+                $endpoint->getMethod(),
+                $endpoint->getURI(),
+                $endpoint->getParams(),
+                $endpoint->getBody(),
+                $endpoint->getOptions()
+            );
+
+            $response = $this->transport->resultOrFuture($response, $endpoint->getOptions());
+            if (!($response instanceof FutureArrayInterface)) {
+                if ($response['status'] === 200) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                // async mode, can't easily resolve this...punt to user
+                return $response;
+            }
+        } catch (Missing404Exception $exception) {
+            return false;
+        } catch (RoutingMissingException $exception) {
+            return false;
+        }
     }
 }
