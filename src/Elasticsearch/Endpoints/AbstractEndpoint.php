@@ -79,6 +79,11 @@ abstract class AbstractEndpoint
         return $this;
     }
 
+    public function setOptions($options)
+    {
+        $this->options = $options;
+    }
+
     /**
      * @return array
      */
