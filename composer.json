@@ -58,5 +58,7 @@
     "phpstan": [
       "phpstan analyse src --level 2 --no-progress"
     ]
-  }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }
