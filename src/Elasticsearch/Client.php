@@ -22,6 +22,7 @@ use Elasticsearch\Common\Exceptions\Missing404Exception;
 use Elasticsearch\Common\Exceptions\RoutingMissingException;
 use Elasticsearch\Endpoints\AbstractEndpoint;
 use Elasticsearch\Namespaces\AbstractNamespace;
+use Elasticsearch\Namespaces\BooleanRequestWrapper;
 use Elasticsearch\Namespaces\CatNamespace;
 use Elasticsearch\Namespaces\CcrNamespace;
 use Elasticsearch\Namespaces\ClusterNamespace;
