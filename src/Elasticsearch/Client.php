@@ -5,8 +5,8 @@
  * @link      https://github.com/elastic/elasticsearch-php/
  * @copyright Copyright (c) Elasticsearch B.V (https://www.elastic.co)
  * @license   http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0
- * @license   https://www.gnu.org/licenses/lgpl-2.1.html GNU Lesser General Public License, Version 2.1 
- * 
+ * @license   https://www.gnu.org/licenses/lgpl-2.1.html GNU Lesser General Public License, Version 2.1
+ *
  * Licensed to Elasticsearch B.V under one or more agreements.
  * Elasticsearch B.V licenses this file to you under the Apache 2.0 License or
  * the GNU Lesser General Public License, Version 2.1, at your option.
@@ -18,34 +18,32 @@ namespace Elasticsearch;
 
 use Elasticsearch\Common\Exceptions\BadMethodCallException;
 use Elasticsearch\Common\Exceptions\InvalidArgumentException;
-use Elasticsearch\Common\Exceptions\NoNodesAvailableException;
-use Elasticsearch\Common\Exceptions\BadRequest400Exception;
 use Elasticsearch\Common\Exceptions\Missing404Exception;
-use Elasticsearch\Common\Exceptions\TransportException;
+use Elasticsearch\Common\Exceptions\RoutingMissingException;
 use Elasticsearch\Endpoints\AbstractEndpoint;
 use Elasticsearch\Namespaces\AbstractNamespace;
-use Elasticsearch\Namespaces\NamespaceBuilderInterface;
-use Elasticsearch\Namespaces\BooleanRequestWrapper;
 use Elasticsearch\Namespaces\CatNamespace;
+use Elasticsearch\Namespaces\CcrNamespace;
 use Elasticsearch\Namespaces\ClusterNamespace;
+use Elasticsearch\Namespaces\GraphNamespace;
+use Elasticsearch\Namespaces\IlmNamespace;
 use Elasticsearch\Namespaces\IndicesNamespace;
 use Elasticsearch\Namespaces\IngestNamespace;
-use Elasticsearch\Namespaces\NodesNamespace;
-use Elasticsearch\Namespaces\SnapshotNamespace;
-use Elasticsearch\Namespaces\TasksNamespace;
-use Elasticsearch\Namespaces\CcrNamespace;
-use Elasticsearch\Namespaces\IlmNamespace;
-use Elasticsearch\Namespaces\SecurityNamespace;
-use Elasticsearch\Namespaces\GraphNamespace;
-use Elasticsearch\Namespaces\XpackNamespace;
 use Elasticsearch\Namespaces\LicenseNamespace;
 use Elasticsearch\Namespaces\MigrationNamespace;
 use Elasticsearch\Namespaces\MlNamespace;
 use Elasticsearch\Namespaces\MonitoringNamespace;
+use Elasticsearch\Namespaces\NamespaceBuilderInterface;
+use Elasticsearch\Namespaces\NodesNamespace;
 use Elasticsearch\Namespaces\RollupNamespace;
+use Elasticsearch\Namespaces\SecurityNamespace;
+use Elasticsearch\Namespaces\SnapshotNamespace;
 use Elasticsearch\Namespaces\SqlNamespace;
 use Elasticsearch\Namespaces\SslNamespace;
+use Elasticsearch\Namespaces\TasksNamespace;
 use Elasticsearch\Namespaces\WatcherNamespace;
+use Elasticsearch\Namespaces\XpackNamespace;
+use GuzzleHttp\Ring\Future\FutureArrayInterface;
 
 /**
  * Class Client
@@ -81,102 +79,102 @@ class Client
      * @var CatNamespace
      */
     protected $cat;
-    
+
     /**
      * @var ClusterNamespace
      */
     protected $cluster;
-    
+
     /**
      * @var IndicesNamespace
      */
     protected $indices;
-    
+
     /**
      * @var IngestNamespace
      */
     protected $ingest;
-    
+
     /**
      * @var NodesNamespace
      */
     protected $nodes;
-    
+
     /**
      * @var SnapshotNamespace
      */
     protected $snapshot;
-    
+
     /**
      * @var TasksNamespace
      */
     protected $tasks;
-    
+
     /**
      * @var CcrNamespace
      */
     protected $ccr;
-    
+
     /**
      * @var IlmNamespace
      */
     protected $ilm;
-    
+
     /**
      * @var SecurityNamespace
      */
     protected $security;
-    
+
     /**
      * @var GraphNamespace
      */
     protected $graph;
-    
+
     /**
      * @var XpackNamespace
      */
     protected $xpack;
-    
+
     /**
      * @var LicenseNamespace
      */
     protected $license;
-    
+
     /**
      * @var MigrationNamespace
      */
     protected $migration;
-    
+
     /**
      * @var MlNamespace
      */
     protected $ml;
-    
+
     /**
      * @var MonitoringNamespace
      */
     protected $monitoring;
-    
+
     /**
      * @var RollupNamespace
      */
     protected $rollup;
-    
+
     /**
      * @var SqlNamespace
      */
     protected $sql;
-    
+
     /**
      * @var SslNamespace
      */
     protected $ssl;
-    
+
     /**
      * @var WatcherNamespace
      */
     protected $watcher;
-    
+
 
     /**
      * Client constructor
@@ -367,7 +365,7 @@ class Client
         $this->verifyNotNullOrEmpty("id", $id);
         $this->verifyNotNullOrEmpty("type", $type);
         $this->verifyNotNullOrEmpty("index", $index);
-        
+
         $endpointBuilder = $this->endpoints;
         $endpoint = $endpointBuilder('Delete');
         $endpoint->setParams($params);
@@ -508,7 +506,7 @@ class Client
         $endpoint->setIndex($index);
         $endpoint->setType($type);
 
-        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
+        return $this->performBooleanRequest($endpoint);
     }
     /**
      * $params['id']               = (string) The document ID (Required)
@@ -545,7 +543,7 @@ class Client
         $endpoint->setIndex($index);
         $endpoint->setType($type);
 
-        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
+        return $this->performBooleanRequest($endpoint);
     }
     /**
      * $params['id']               = (string) The document ID (Required)
@@ -898,7 +896,7 @@ class Client
         $endpoint = $endpointBuilder('Ping');
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
+        return $this->performBooleanRequest($endpoint);
     }
     /**
      * $params['id']             = (string) Script ID (Required)
@@ -1468,7 +1466,7 @@ class Client
             }
         }
     }
-    
+
     /**
      * @return callable|array
      */
@@ -1483,5 +1481,42 @@ class Client
         );
 
         return $this->transport->resultOrFuture($promise, $endpoint->getOptions());
+    }
+
+    /**
+     * Perform Boolean Request
+     *
+     * @param  AbstractEndpoint $endpoint The Endpoint to perform this request against
+     *
+     * @throws Missing404Exception
+     * @throws RoutingMissingException
+     */
+    protected function performBooleanRequest(AbstractEndpoint $endpoint)
+    {
+        try {
+            $response = $this->transport->performRequest(
+                $endpoint->getMethod(),
+                $endpoint->getURI(),
+                $endpoint->getParams(),
+                $endpoint->getBody(),
+                $endpoint->getOptions()
+            );
+
+            $response = $this->transport->resultOrFuture($response, $endpoint->getOptions());
+            if (!($response instanceof FutureArrayInterface)) {
+                if ($response['status'] === 200) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                // async mode, can't easily resolve this...punt to user
+                return $response;
+            }
+        } catch (Missing404Exception $exception) {
+            return false;
+        } catch (RoutingMissingException $exception) {
+            return false;
+        }
     }
 }
